@@ -41,7 +41,7 @@ npx skills update generate-baby-portrait-prompts -g -y
 ```text
 宝宝参考图：
 月龄与性别：5个月，中国男宝宝
-主题：夏日泳池
+主题：复古玩具房
 服装：
 姿态：
 道具：
@@ -85,7 +85,7 @@ npx skills update generate-baby-portrait-prompts -g -y
 主题可以直接组合，例如：
 
 ```text
-使用 $generate-baby-portrait-prompts，沿用同一位宝宝，做 5 张夏日清爽主题儿童写真，参考中国影楼的高明度布景和生活化道具叙事。
+使用 $generate-baby-portrait-prompts，沿用同一位宝宝，做 5 张复古玩具房主题儿童写真，参考中国影楼的高明度布景和生活化道具叙事。
 ```
 
 ## 输出规则
