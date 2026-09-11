@@ -1,0 +1,13 @@
+interface:
+  display_name: 复古宝宝写真提示词大师
+  short_description: 锁定宝宝身份并生成细致、写实、可控的主题写真提示词
+  default_prompt: 使用 $generate-baby-portrait-prompts，根据我提供的宝宝参考图与主题变量生成完整写真提示词。
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
