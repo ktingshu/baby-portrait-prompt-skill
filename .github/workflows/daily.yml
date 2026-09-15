@@ -1,0 +1,65 @@
+name: 每日抓取博主推文并更新页面
+
+# 触发方式：
+#   1. 每天 00:30 UTC（北京时间 08:30）自动运行
+#   2. 可在仓库 Actions 页面手动点击运行
+on:
+  schedule:
+      - cron: '30 0 * * *'
+        workflow_dispatch:
+
+        permissions:
+          contents: write
+            pages: write
+              id-token: write
+
+              concurrency:
+                group: "pages"
+                  cancel-in-progress: true
+
+                  jobs:
+                    fetch-and-deploy:
+                        runs-on: ubuntu-latest
+                            environment:
+                                  name: github-pages
+                                        url: ${{ steps.deployment.outputs.page_url }}
+                                            steps:
+                                                  - name: 拉取代码
+                                                          uses: actions/checkout@v4
+
+                                                                - name: 配置 Python
+                                                                        uses: actions/setup-python@v5
+                                                                                with:
+                                                                                          python-version: '3.12'
+
+                                                                                                - name: 安装依赖
+                                                                                                        run: |
+                                                                                                                  pip install -q httpx twikit
+                                                                                                                  
+                                                                                                                        - name: 抓取博主推文
+                                                                                                                                env:
+                                                                                                                                          # 从仓库 Secrets 注入 X 登录 Cookie（Settings → Secrets and variables → Actions）
+                                                                                                                                                    X_AUTH_TOKEN: ${{ secrets.X_AUTH_TOKEN }}
+                                                                                                                                                              X_CT0: ${{ secrets.X_CT0 }}
+                                                                                                                                                                      run: python fetch_x.py --top 20 --delay 4
+                                                                                                                                                                      
+                                                                                                                                                                            - name: 提交数据更新
+                                                                                                                                                                                    run: |
+                                                                                                                                                                                              git config user.name "x-feed-bot"
+                                                                                                                                                                                                        git config user.email "actions@github.com"
+                                                                                                                                                                                                                  git add data.json .x_config.json
+                                                                                                                                                                                                                            git diff --cached --quiet || git commit -m "chore: 每日更新博主推文数据 ($(date -u +'%Y-%m-%d %H:%M'))"
+                                                                                                                                                                                                                                      git push
+                                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                            - name: 配置 GitHub Pages
+                                                                                                                                                                                                                                                    uses: actions/configure-pages@v5
+                                                                                                                                                                                                                                                    
+                                                                                                                                                                                                                                                          - name: 上传页面产物
+                                                                                                                                                                                                                                                                  uses: actions/upload-pages-artifact@v3
+                                                                                                                                                                                                                                                                          with:
+                                                                                                                                                                                                                                                                                    path: '.'
+                                                                                                                                                                                                                                                                                    
+                                                                                                                                                                                                                                                                                          - name: 部署到 GitHub Pages
+                                                                                                                                                                                                                                                                                                  id: deployment
+                                                                                                                                                                                                                                                                                                          uses: actions/deploy-pages@v4
+                                                                                                                                                                                                                                                                                                          
