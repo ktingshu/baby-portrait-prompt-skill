@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>X 博主精选动态｜AI 创作灵感</title>
+<meta name="description" content="每日自动更新的 X 博主高赞精选，聚焦 AI 提示词、视觉创作与 AI 美女内容。" />
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --line: #e6e9f2;
+    --text: #1c2333;
+    --muted: #7a8398;
+    --accent: #2563eb;
+    --accent-soft: #eaf1ff;
+    --chip-bg: #eef1f8;
+    --shadow: 0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding-bottom: 60px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+
+  header {
+    background: linear-gradient(135deg, #ffffff 0%, #f0f5ff 100%);
+    border-bottom: 1px solid var(--line);
+    padding: 28px 0 22px;
+    margin-bottom: 20px;
+  }
+  .header-inner { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 24px; font-weight: 800; letter-spacing: .3px; }
+  h1 .x { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .meta { text-align: right; font-size: 12px; color: var(--muted); }
+  .meta .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--accent-soft); color: var(--accent);
+    padding: 4px 12px; border-radius: 999px; font-weight: 600;
+  }
+  .meta .updated { margin-top: 8px; }
+
+  /* 博主筛选 */
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 18px; }
+  .chip {
+    border: 1px solid var(--line); background: var(--chip-bg); color: var(--text);
+    padding: 6px 14px; border-radius: 999px; font-size: 13px; cursor: pointer;
+    transition: all .15s; user-select: none;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .chip .cnt { opacity: .6; font-size: 11px; margin-left: 3px; }
+
+  /* 排序 */
+  .bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .sort-group { display: flex; gap: 6px; }
+  .sort-btn {
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+    padding: 5px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;
+  }
+  .sort-btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .count-note { font-size: 12px; color: var(--muted); }
+
+  /* 推文卡片 */
+  .feed { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 18px; box-shadow: var(--shadow); transition: box-shadow .15s;
+  }
+  .card:hover { box-shadow: 0 4px 12px rgba(16,24,40,.10); }
+  .card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff;
+    font-weight: 700; font-size: 15px; text-decoration: none;
+  }
+  .who { min-width: 0; }
+  .who .name { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+  .who .handle { color: var(--muted); font-size: 12px; }
+  .who a { color: inherit; text-decoration: none; }
+  .who a:hover { color: var(--accent); }
+  .text { font-size: 14.5px; word-break: break-word; white-space: pre-wrap; margin-bottom: 10px; }
+  .text .hashtag { color: var(--accent); }
+  .stats { display: flex; gap: 16px; color: var(--muted); font-size: 12.5px; }
+  .stats span { display: inline-flex; align-items: center; gap: 4px; }
+  .stats .n { font-weight: 600; color: var(--text); }
+  .card-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  .time { color: var(--muted); font-size: 12px; }
+  .open {
+    font-size: 12.5px; color: var(--accent); text-decoration: none; font-weight: 600;
+  }
+  .open:hover { text-decoration: underline; }
+
+  /* 加载 & 空态 */
+  .loading, .empty { text-align: center; color: var(--muted); padding: 60px 0; font-size: 14px; }
+  .spinner {
+    width: 32px; height: 32px; margin: 0 auto 14px; border-radius: 50%;
+    border: 3px solid var(--line); border-top-color: var(--accent);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 40px; }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 20px; }
+    .meta { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap header-inner">
+    <div>
+      <h1><span class="x">X</span> 博主精选动态</h1>
+      <div class="sub">AI 提示词 · 视觉创作 · AI 美女 —— 每日自动更新</div>
+    </div>
+    <div class="meta">
+      <span class="badge">● 自动更新</span>
+      <div class="updated" id="updated">更新时间 --</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="chips" id="chips"></div>
+
+  <div class="bar">
+    <div class="sort-group">
+      <button class="sort-btn active" data-sort="likes">按点赞</button>
+      <button class="sort-btn" data-sort="time">按时间</button>
+    </div>
+    <div class="count-note" id="countNote"></div>
+  </div>
+
+  <div class="feed" id="feed">
+    <div class="loading"><div class="spinner"></div>正在加载数据…</div>
+  </div>
+</div>
+
+<footer>数据来自 X 公开内容 · 由 GitHub Actions 每日自动抓取</footer>
+
+<script>
+const state = { accounts: [], active: 'all', sort: 'likes' };
+
+async function load() {
+  try {
+    const res = await fetch('data.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    state.accounts = data.accounts || [];
+    document.getElementById('updated').textContent = '更新于 ' + (data.generated_at || '--');
+    renderChips();
+    render();
+  } catch (e) {
+    document.getElementById('feed').innerHTML =
+      '<div class="empty">数据加载失败：' + e.message + '<br><br>请确认 data.json 已生成（首次可点击仓库 Actions 手动运行一次）。</div>';
+  }
+}
+
+function renderChips() {
+  const box = document.getElementById('chips');
+  const total = state.accounts.reduce((s, a) => s + a.tweets.length, 0);
+  box.innerHTML = '';
+  const all = document.createElement('div');
+  all.className = 'chip active';
+  all.textContent = '全部博主';
+  const c = document.createElement('span');
+  c.className = 'cnt'; c.textContent = total;
+  all.appendChild(c);
+  all.onclick = () => setActive('all');
+  box.appendChild(all);
+  state.accounts.forEach(a => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.textContent = a.disp_name || a.name;
+    const cnt = document.createElement('span');
+    cnt.className = 'cnt'; cnt.textContent = a.tweets.length;
+    chip.appendChild(cnt);
+    chip.onclick = () => setActive(a.handle);
+    box.appendChild(chip);
+  });
+}
+
+function setActive(handle) {
+  state.active = handle;
+  document.querySelectorAll('.chip').forEach(ch => ch.classList.toggle('active', ch.textContent === (handle === 'all' ? '全部博主' : (accountName(handle)))));
+  render();
+}
+function accountName(h) {
+  const a = state.accounts.find(x => x.handle === h);
+  return a ? (a.disp_name || a.name) : h;
+}
+
+function render() {
+  const feed = document.getElementById('feed');
+  let tweets = [];
+  state.accounts.forEach(a => {
+    if (state.active !== 'all' && a.handle !== state.active) return;
+    a.tweets.forEach(t => tweets.push({ ...t, handle: a.handle, name: a.disp_name || a.name }));
+  });
+  if (state.sort === 'likes') {
+    tweets.sort((x, y) => (y.likes || 0) - (x.likes || 0));
+  } else {
+    tweets.sort((x, y) => parseTime(y.created_at) - parseTime(x.created_at));
+  }
+  document.getElementById('countNote').textContent = '共 ' + tweets.length + ' 条精选';
+  if (!tweets.length) {
+    feed.innerHTML = '<div class="empty">暂无内容</div>';
+    return;
+  }
+  feed.innerHTML = tweets.map(cardHtml).join('');
+}
+
+function cardHtml(t) {
+  const time = fmtTime(t.created_at);
+  const initial = (t.name || t.handle || '?').trim().charAt(0).toUpperCase();
+  return `
+    <div class="card">
+      <div class="card-top">
+        <a class="avatar" href="https://x.com/${t.handle}" target="_blank" rel="noopener">${escapeHtml(initial)}</a>
+        <div class="who">
+          <div class="name"><a href="https://x.com/${t.handle}" target="_blank" rel="noopener">${escapeHtml(t.name)}</a></div>
+          <div class="handle">@${t.handle}</div>
+        </div>
+      </div>
+      <div class="text">${linkify(t.text)}</div>
+      <div class="stats">
+        <span>❤️ <span class="n">${t.likes}</span></span>
+        <span>🔁 <span class="n">${t.retweets}</span></span>
+        <span>💬 <span class="n">${t.replies}</span></span>
+        <span>👁 <span class="n">${t.views === '?' ? '—' : t.views}</span></span>
+      </div>
+      <div class="card-foot">
+        <span class="time">${time}</span>
+        <a class="open" href="${t.url}" target="_blank" rel="noopener">查看原文 →</a>
+      </div>
+    </div>`;
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function linkify(text) {
+  const esc = escapeHtml(text);
+  // 把 https://t.co/xxx 之类的链接转成可点击
+  return esc.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent)">$1</a>');
+}
+
+function parseTime(s) {
+  if (!s) return 0;
+  const d = new Date(s);
+  return isNaN(d) ? 0 : d.getTime();
+}
+
+function fmtTime(s) {
+  if (!s) return '--';
+  const d = new Date(s);
+  if (isNaN(d)) return '--';
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if (diff < 3600) return Math.max(1, Math.floor(diff / 60)) + ' 分钟前';
+  if (diff < 86400) return Math.floor(diff / 3600) + ' 小时前';
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + ' 天前';
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.onclick = () => {
+    state.sort = btn.dataset.sort;
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b === btn));
+    render();
+  };
+});
+
+load();
+</script>
+</body>
+</html>

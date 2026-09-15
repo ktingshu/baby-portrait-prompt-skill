@@ -1,0 +1,10 @@
+{
+  "bearer": "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+  "proxy": "",
+  "gql": {
+    "UserByScreenName": "NimuplG1OB7Fd2btCLdBOw/UserByScreenName",
+    "UserTweets": "QWF3SzpHmykQHsQMixG0cg/UserTweets",
+    "UserTweetsAndReplies": "vMkJyzx1wdmvOeeNG0n6Wg/UserTweetsAndReplies",
+    "SearchTimeline": "flaR-PUMshxFWZWPNpq4zA/SearchTimeline"
+  }
+}
