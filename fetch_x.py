@@ -16,8 +16,10 @@ X 博主推文批量抓取脚本（免费 · 无需 API Key）
       --top    每个博主保留的推文条数（按时间最新在前），默认 20
       --delay  每个博主之间的等待秒数，默认 2
 
-输出：
-    data.json —— 供 index.html 渲染的聚合数据
+特性：
+  - 遇到 HTTP 429 限流自动等待 30s 后重试（最多 2 次）
+  - 失败博主保留上次抓取数据（断点续传），避免数据丢失
+  - 输出 data.json 供 index.html 渲染
 """
 
 import argparse
@@ -159,7 +161,6 @@ def gql_get(client, endpoint_key, variables, features, guest_token=None):
     r.raise_for_status()
     return r.json()
 
-
 # ── 解析 ───────────────────────────────────────────────────────────────────────
 def extract_tweet_text(tweet_result):
     legacy = tweet_result.get("legacy", {})
@@ -224,60 +225,69 @@ def tweet_time_key(t):
         return 0
 
 
-# ── 抓取单个博主 ───────────────────────────────────────────────────────────────
-def fetch_account(client, handle, guest_token, top_n):
-    """抓取一个博主的资料 + 最新推文。成功返回 dict，失败返回 None。"""
-    try:
-        user_data = gql_get(
-            client, "UserByScreenName",
-            {"screen_name": handle, "withSafetyModeUserFields": True},
-            USER_FEATURES, guest_token,
-        )
-        user_result = user_data.get("data", {}).get("user", {}).get("result", {})
-        if not user_result:
-            print(f"  ⚠️ @{handle}: 未找到该用户", file=sys.stderr)
+# ── 抓取单个博主（含 429 重试）─────────────────────────────────────────────────
+def fetch_account(client, handle, guest_token, top_n, max_retries=2):
+    """抓取一个博主的资料 + 最新推文。成功返回 dict，失败返回 None。
+    遇到 HTTP 429 限流时自动等待并重试。"""
+    for attempt in range(max_retries + 1):
+        try:
+            user_data = gql_get(
+                client, "UserByScreenName",
+                {"screen_name": handle, "withSafetyModeUserFields": True},
+                USER_FEATURES, guest_token,
+            )
+            user_result = user_data.get("data", {}).get("user", {}).get("result", {})
+            if not user_result:
+                print(f"  ⚠️ @{handle}: 未找到该用户", file=sys.stderr)
+                return None
+            legacy = user_result.get("legacy", {})
+            user_id = user_result.get("rest_id", "")
+
+            data = gql_get(
+                client, "UserTweets", {
+                    "userId": user_id,
+                    "count": 40,
+                    "includePromotedContent": False,
+                    "withQuickPromoteEligibilityTweetFields": True,
+                    "withVoice": True,
+                    "withV2Timeline": True,
+                }, TWEET_FEATURES, guest_token,
+            )
+            tweets = flatten_timeline(data)
+
+            # 去重 + 按时间最新在前 + 取前 N 条
+            seen, unique = set(), []
+            for t in tweets:
+                if t and t.get("id") and t["id"] not in seen:
+                    seen.add(t["id"])
+                    unique.append(t)
+            unique.sort(key=tweet_time_key, reverse=True)
+            tweets_top = unique[:top_n]
+            for t in tweets_top:
+                t["url"] = f"https://x.com/{handle}/status/{t['id']}"
+
+            return {
+                "handle": handle,
+                "name": legacy.get("name", handle),
+                "bio": legacy.get("description", ""),
+                "followers": legacy.get("followers_count", 0),
+                "following": legacy.get("friends_count", 0),
+                "profile_url": f"https://x.com/{handle}",
+                "tweets": tweets_top,
+            }
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code
+            if status == 429 and attempt < max_retries:
+                wait = 30 * (attempt + 1)
+                print(f"  ⏳ @{handle}: HTTP 429 限流，等待 {wait}s 后重试 ({attempt+1}/{max_retries})...", file=sys.stderr)
+                time.sleep(wait)
+                continue
+            print(f"  ⚠️ @{handle}: HTTP {status}", file=sys.stderr)
             return None
-        legacy = user_result.get("legacy", {})
-        user_id = user_result.get("rest_id", "")
-
-        data = gql_get(
-            client, "UserTweets", {
-                "userId": user_id,
-                "count": 40,
-                "includePromotedContent": False,
-                "withQuickPromoteEligibilityTweetFields": True,
-                "withVoice": True,
-                "withV2Timeline": True,
-            }, TWEET_FEATURES, guest_token,
-        )
-        tweets = flatten_timeline(data)
-
-        # 去重 + 按时间最新在前 + 取前 N 条
-        seen, unique = set(), []
-        for t in tweets:
-            if t and t.get("id") and t["id"] not in seen:
-                seen.add(t["id"])
-                unique.append(t)
-        unique.sort(key=tweet_time_key, reverse=True)
-        tweets_top = unique[:top_n]
-        for t in tweets_top:
-            t["url"] = f"https://x.com/{handle}/status/{t['id']}"
-
-        return {
-            "handle": handle,
-            "name": legacy.get("name", handle),
-            "bio": legacy.get("description", ""),
-            "followers": legacy.get("followers_count", 0),
-            "following": legacy.get("friends_count", 0),
-            "profile_url": f"https://x.com/{handle}",
-            "tweets": tweets_top,
-        }
-    except httpx.HTTPStatusError as e:
-        print(f"  ⚠️ @{handle}: HTTP {e.response.status_code}", file=sys.stderr)
-        return None
-    except Exception as e:
-        print(f"  ⚠️ @{handle}: {e}", file=sys.stderr)
-        return None
+        except Exception as e:
+            print(f"  ⚠️ @{handle}: {e}", file=sys.stderr)
+            return None
+    return None
 
 
 # ── 读取名单 ───────────────────────────────────────────────────────────────────
@@ -295,6 +305,19 @@ def read_followed():
     return accounts
 
 
+# ── 加载上次数据（断点续传）────────────────────────────────────────────────────
+def load_previous_data():
+    """读取已有的 data.json，返回 handle -> account dict 的映射。"""
+    if not os.path.exists(OUTPUT_FILE):
+        return {}
+    try:
+        with open(OUTPUT_FILE, encoding="utf-8") as f:
+            old = json.load(f)
+        return {a["handle"]: a for a in old.get("accounts", [])}
+    except Exception:
+        return {}
+
+
 # ── 主流程 ─────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="X 博主推文批量抓取")
@@ -310,7 +333,15 @@ def main():
     accounts = read_followed()
     print(f"共 {len(accounts)} 个博主，开始抓取（每博主取最新 {args.top} 条）...")
 
+    # 加载上次数据，用于断点续传
+    previous = load_previous_data()
+    if previous:
+        print(f"📦 已加载上次数据（{len(previous)} 位博主），失败时将保留旧数据")
+
     results = []
+    failed_count = 0
+    reused_count = 0
+
     with make_client() as client:
         gt = None
         if not HAS_AUTH:
@@ -322,6 +353,17 @@ def main():
             if acc:
                 acc["disp_name"] = disp_name
                 results.append(acc)
+            else:
+                failed_count += 1
+                # 断点续传：保留上次数据
+                if handle in previous:
+                    old_acc = previous[handle]
+                    old_acc["disp_name"] = disp_name
+                    results.append(old_acc)
+                    reused_count += 1
+                    print(f"  ♻️ @{handle}: 本次失败，保留上次数据（{len(old_acc.get('tweets', []))} 条）")
+                else:
+                    print(f"  ❌ @{handle}: 抓取失败且无历史数据")
             if i < len(accounts):
                 time.sleep(args.delay)
 
@@ -336,7 +378,9 @@ def main():
         json.dump(payload, f, ensure_ascii=False, indent=1)
 
     total_tweets = sum(len(a["tweets"]) for a in results)
-    print(f"\n✅ 完成：{len(results)}/{len(accounts)} 个博主 / {total_tweets} 条推文 → {OUTPUT_FILE}")
+    fresh_count = len(results) - reused_count
+    print(f"\n✅ 完成：{len(results)}/{len(accounts)} 位博主 / {total_tweets} 条推文 → {OUTPUT_FILE}")
+    print(f"   本次新抓取：{fresh_count} 位 | 保留旧数据：{reused_count} 位 | 完全失败：{failed_count - reused_count} 位")
 
 
 if __name__ == "__main__":
